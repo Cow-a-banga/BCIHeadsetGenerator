@@ -11,8 +11,7 @@ from scipy.optimize import fsolve
 import urllib.request
 
 def normalize(vec):
-    l = (vec[0] ** 2 + vec[1] ** 2 + vec[2] ** 2)**0.5
-    return [vec[0]/l, vec[1]/l, vec[2]/l]
+    return vec / np.linalg.norm(vec)
   
 def rotation_matrix_from_vectors(vec1, vec2):
     a, b = (vec1 / np.linalg.norm(vec1)).reshape(3), (vec2 / np.linalg.norm(vec2)).reshape(3)
@@ -27,7 +26,7 @@ def rotation_matrix_from_vectors(vec1, vec2):
 
 def ellipsoidFormula(r1, r2, r3, x, y):
     formula = 1 - (x/r1)**2 - (y/r2)**2
-    if formula< 0:
+    if formula < 0:
         return [x, y, 0]
     return [x, y, r3 * math.sqrt(formula)]
 
@@ -36,25 +35,25 @@ def ellipsFormula(r1, r2, x, sign):
 
 def getCoordinates(r1, r2, r3):
     return { 
-    "Cz":[0, 0, r3],
-    "T3":[r1, 0, 0],
-    "T4":[-r1, 0, 0],
-    "C3":[r1*math.cos(math.pi/4), 0, r3*math.sin(math.pi/4)],
-    "C4":[-r1*math.cos(math.pi/4), 0, r3*math.sin(math.pi/4)],
-    "Pz":[0, r2*math.cos(math.pi/4), r3*math.sin(math.pi/4)],
-    "Fz":[0, -r2*math.cos(math.pi/4), r3*math.sin(math.pi/4)],
-    "O1":[-r1*math.cos(-3*math.pi/5), -r2*math.sin(-3*math.pi/5), 0],
-    "O2":[-r1*math.cos(-2*math.pi/5), -r2*math.sin(-2*math.pi/5), 0],
-    "Fp1":[-r1*math.cos(3*math.pi/5), -r2*math.sin(3*math.pi/5), 0],
-    "Fp2":[-r1*math.cos(2*math.pi/5), -r2*math.sin(2*math.pi/5), 0],
-    "T5":[-r1*math.cos(-4*math.pi/5), -r2*math.sin(-4*math.pi/5), 0],
-    "T6":[-r1*math.cos(-math.pi/5), -r2*math.sin(-math.pi/5), 0],
-    "F7":[-r1*math.cos(4*math.pi/5), -r2*math.sin(4*math.pi/5), 0],
-    "F8":[-r1*math.cos(math.pi/5), -r2*math.sin(math.pi/5), 0],
-    "P3":ellipsoidFormula(r1, r2, r3, -r1*math.cos(3*math.pi/5), -r1*math.cos(4*math.pi/5)),
-    "F3":ellipsoidFormula(r1, r2, r3, -r1*math.cos(3*math.pi/5), r1*math.cos(4*math.pi/5)),
-    "P4":ellipsoidFormula(r1, r2, r3, r1*math.cos(3*math.pi/5), -r1*math.cos(4*math.pi/5)),
-    "F4":ellipsoidFormula(r1, r2, r3, r1*math.cos(3*math.pi/5), r1*math.cos(4*math.pi/5)),
+    "Cz":np.array([0, 0, r3]),
+    "T3":np.array([r1, 0, 0]),
+    "T4":np.array([-r1, 0, 0]),
+    "C3":np.array([r1*math.cos(math.pi/4), 0, r3*math.sin(math.pi/4)]),
+    "C4":np.array([-r1*math.cos(math.pi/4), 0, r3*math.sin(math.pi/4)]),
+    "Pz":np.array([0, r2*math.cos(math.pi/4), r3*math.sin(math.pi/4)]),
+    "Fz":np.array([0, -r2*math.cos(math.pi/4), r3*math.sin(math.pi/4)]),
+    "O1":np.array([-r1*math.cos(-3*math.pi/5), -r2*math.sin(-3*math.pi/5), 0]),
+    "O2":np.array([-r1*math.cos(-2*math.pi/5), -r2*math.sin(-2*math.pi/5), 0]),
+    "Fp1":np.array([-r1*math.cos(3*math.pi/5), -r2*math.sin(3*math.pi/5), 0]),
+    "Fp2":np.array([-r1*math.cos(2*math.pi/5), -r2*math.sin(2*math.pi/5), 0]),
+    "T5":np.array([-r1*math.cos(-4*math.pi/5), -r2*math.sin(-4*math.pi/5), 0]),
+    "T6":np.array([-r1*math.cos(-math.pi/5), -r2*math.sin(-math.pi/5), 0]),
+    "F7":np.array([-r1*math.cos(4*math.pi/5), -r2*math.sin(4*math.pi/5), 0]),
+    "F8":np.array([-r1*math.cos(math.pi/5), -r2*math.sin(math.pi/5), 0]),
+    "P3":np.array(ellipsoidFormula(r1, r2, r3, -r1*math.cos(3*math.pi/5), -r1*math.cos(4*math.pi/5))),
+    "F3":np.array(ellipsoidFormula(r1, r2, r3, -r1*math.cos(3*math.pi/5), r1*math.cos(4*math.pi/5))),
+    "P4":np.array(ellipsoidFormula(r1, r2, r3, r1*math.cos(3*math.pi/5), -r1*math.cos(4*math.pi/5))),
+    "F4":np.array(ellipsoidFormula(r1, r2, r3, r1*math.cos(3*math.pi/5), r1*math.cos(4*math.pi/5))),
     }
     
 def getConnectedPoints():
@@ -128,7 +127,11 @@ def getCurvesOnTheBottom(r2, r3, points_coordinates, dx = 0.5):
         coord2 = points_coordinates[p2]
         inter_points_x = getInterPointsX(coord1[0], coord2[0], dx)
 
-        inter_points = [App.Vector(x, ellipsFormula(r2, r3, x, math.copysign(1, coord1[1])), 0) for x in inter_points_x]
+        inter_points_xyz = [[x, ellipsFormula(r2, r3, x, math.copysign(1, coord1[1])), 0] for x in inter_points_x]
+        socketRadius = 12
+        points = list(filter(lambda x: math.dist(coord1, x) > socketRadius and math.dist(coord2, x) > socketRadius , inter_points_xyz))
+
+        inter_points = [App.Vector(x[0], x[1], x[2]) for x in points]
 
         curve = Draft.make_bezcurve(inter_points)
         curves.append(curve.Shape)
@@ -146,7 +149,6 @@ def getCurvesNotOnTheBottom(r1, r2, r3, points_coordinates, dx = 0.5):
     connections = getConnectedPoints()
     curves = []
     for p1, p2 in connections[1]:
-        print(p1,p2)
 
         coord1 = points_coordinates[p1]
         coord2 = points_coordinates[p2]
@@ -162,7 +164,11 @@ def getCurvesNotOnTheBottom(r1, r2, r3, points_coordinates, dx = 0.5):
 
         inter_points_xyz = [ellipsoidFormula(r1,r2,r3, xy[0], xy[1]) for xy in inter_points_xy]
 
-        inter_points = [App.Vector(xyz[0], xyz[1], xyz[2]) for xyz in inter_points_xyz]
+        socketRadius = 12
+        points = list(filter(lambda x: math.dist(coord1, x) > socketRadius and math.dist(coord2, x) > socketRadius , inter_points_xyz))
+        inter_points = [App.Vector(xyz[0], xyz[1], xyz[2]) for xyz in points]
+
+        # inter_points = [App.Vector(xyz[0], xyz[1], xyz[2]) for xyz in inter_points_xyz]
 
         curve = Draft.make_bezcurve(inter_points)
         curves.append(curve.Shape)
@@ -193,7 +199,9 @@ def renderBridges(r1, r2, r3, points_coordinates):
     curves0 = getCurvesOnTheBottom(r1, r2, points_coordinates)
     curves1 = getCurvesNotOnTheBottom(r1,r2,r3,points_coordinates, dx = 1)
 
-    dr = 10
+    curves = curves0 + curves1
+
+    dr = 5
     r1+=dr
     r2+=dr
     r3+=dr
@@ -202,20 +210,19 @@ def renderBridges(r1, r2, r3, points_coordinates):
     curves02 = getCurvesOnTheBottom(r1, r2, points_coordinates2)
     curves12 = getCurvesNotOnTheBottom(r1,r2,r3,points_coordinates2, dx = 1)
 
-    surfaces0 = []
-    surfaces1 = []
+    curves2 = curves02 + curves12
 
-    for i in range(len(curves0)):
-        surface = Part.makeRuledSurface(curves0[i], curves02[i])
-        e = surface.extrude(App.Vector(0,0,5))
-        Part.show(e)
-        surfaces0.append(e)
+    models = []
 
-    for i in range(len(curves1)):
-        surface = Part.makeRuledSurface(curves1[i], curves12[i])
-        Part.show(surface)
-        surfaces1.append(surface)
-    return surfaces0, surfaces1
+    offsetSize = 2
+
+    for i in range(len(curves)):
+        surface = Part.makeRuledSurface(curves[i], curves2[i])
+        offset1 = surface.makeOffsetShape(offsetSize, 0.1, fill = True)
+        offset2 = surface.makeOffsetShape(-offsetSize, 0.1, fill = True)
+        offset = offset1.fuse(offset2)
+        Part.show(offset)
+        models.append(offset)
 
 
 def equations(p):
