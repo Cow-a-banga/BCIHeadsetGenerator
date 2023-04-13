@@ -96,12 +96,13 @@ def getConnectedPoints():
         ]
     ]
 
-def getInterPointsX(p1, p2, dx):
+def getInterPointsX(p1, p2, dx, radius):
     inversed = False
     if p1 > p2:
         p1, p2 = p2, p1
         inversed = True
     points = []
+
     i = p1
     while i + dx < p2:
         points.append(i)
@@ -111,73 +112,55 @@ def getInterPointsX(p1, p2, dx):
         points.reverse()
     return points
 
-def getInterPoints(p1, p2, points_coordinates, dx):
-    coord1 = points_coordinates[p1]
-    coord2 = points_coordinates[p2]
-    inter_points_x = getInterPointsX(coord1[0], coord2[0], dx)
-    inter_points = [App.Vector(x, ellipsFormula(r2, r3, x, math.copysign(1, coord1[1])), 0) for x in inter_points_x]
-    return inter_points
-
 
 def getCurvesOnTheBottom(r2, r3, points_coordinates, dx = 0.5):
+    socketRadius = 12
     connections = getConnectedPoints()
     curves = []
     for p1, p2 in connections[0]:
         coord1 = points_coordinates[p1]
         coord2 = points_coordinates[p2]
-        inter_points_x = getInterPointsX(coord1[0], coord2[0], dx)
+        inter_points_x = getInterPointsX(coord1[0], coord2[0], dx, socketRadius)
 
         inter_points_xyz = [[x, ellipsFormula(r2, r3, x, math.copysign(1, coord1[1])), 0] for x in inter_points_x]
-        socketRadius = 12
-        points = list(filter(lambda x: math.dist(coord1, x) > socketRadius and math.dist(coord2, x) > socketRadius , inter_points_xyz))
+        #points = list(filter(lambda x: math.dist(coord1, x) > socketRadius and math.dist(coord2, x) > socketRadius , inter_points_xyz))
 
-        inter_points = [App.Vector(x[0], x[1], x[2]) for x in points]
+        inter_points = [App.Vector(x[0], x[1], x[2]) for x in inter_points_xyz]
 
         curve = Draft.make_bezcurve(inter_points)
         curves.append(curve.Shape)
     return curves
 
-def getABForLine(p1, p2):
-    if abs(p1[0] - p2[0]) < 1e-10 :
-        return [p1[0], None]
-
-    a = (p2[1] - p1[1])/(p2[0] - p1[0])
-    b = p1[1] - a*p1[0]
-    return [a,b]
-
-def getCurvesNotOnTheBottom(r1, r2, r3, points_coordinates, dx = 0.5):
+def getCurvesOnEllipsoid(r1, r2, r3, points_coordinates, n = 20):
     connections = getConnectedPoints()
     curves = []
+
     for p1, p2 in connections[1]:
 
         coord1 = points_coordinates[p1]
         coord2 = points_coordinates[p2]
+        points = [coord1]
 
-        [a,b] = getABForLine(coord1, coord2)
+        for i in range(1, n):
+            points.append([
+                coord1[0]+i*(coord2[0]-coord1[0])/n,
+                coord1[1]+i*(coord2[1]-coord1[1])/n,
+                coord1[2]+i*(coord2[2]-coord1[2])/n
+                ])
+        points.append(coord2)
 
-        if b != None:
-            inter_points_x = getInterPointsX(coord1[0], coord2[0], dx)
-            inter_points_xy = [[x, a*x + b] for x in inter_points_x]
-        else:
-            inter_points_y = getInterPointsX(coord1[1], coord2[1], dx)
-            inter_points_xy = [[a, y] for y in inter_points_y]
+        points_3d = [ellipsoidFormula(r1,r2,r3,p[0], p[1]) for p in points]
+        vectors = [App.Vector(p[0], p[1], p[2]) for p in points_3d]
 
-        inter_points_xyz = [ellipsoidFormula(r1,r2,r3, xy[0], xy[1]) for xy in inter_points_xy]
-
-        socketRadius = 12
-        points = list(filter(lambda x: math.dist(coord1, x) > socketRadius and math.dist(coord2, x) > socketRadius , inter_points_xyz))
-        inter_points = [App.Vector(xyz[0], xyz[1], xyz[2]) for xyz in points]
-
-        # inter_points = [App.Vector(xyz[0], xyz[1], xyz[2]) for xyz in inter_points_xyz]
-
-        curve = Draft.make_bezcurve(inter_points)
+        curve = Draft.make_bezcurve(vectors)
         curves.append(curve.Shape)
+
     return curves
 
 def renderSocktes(r1, r2, r3, points_coordinates):
     points_mesh = []
     urllib.request.urlretrieve(config['DEFAULT']['ModelUrl'], config['DEFAULT']['ModelPath'])
-    for _,coords in points_coordinates.items():
+    for name,coords in points_coordinates.items():
         point = Mesh.Mesh(config['DEFAULT']['ModelPath'])
         
         normal = [2*coords[0]/r1**2, 2*coords[1]/r2**2, 2*coords[2]/r3**2]
@@ -197,7 +180,7 @@ def renderSocktes(r1, r2, r3, points_coordinates):
 
 def renderBridges(r1, r2, r3, points_coordinates):
     curves0 = getCurvesOnTheBottom(r1, r2, points_coordinates)
-    curves1 = getCurvesNotOnTheBottom(r1,r2,r3,points_coordinates, dx = 1)
+    curves1 = getCurvesOnEllipsoid(r1,r2,r3,points_coordinates)
 
     curves = curves0 + curves1
 
@@ -208,7 +191,7 @@ def renderBridges(r1, r2, r3, points_coordinates):
 
     points_coordinates2 = getCoordinates(r1, r2, r3)
     curves02 = getCurvesOnTheBottom(r1, r2, points_coordinates2)
-    curves12 = getCurvesNotOnTheBottom(r1,r2,r3,points_coordinates2, dx = 1)
+    curves12 = getCurvesOnEllipsoid(r1,r2,r3,points_coordinates2)
 
     curves2 = curves02 + curves12
 
@@ -256,7 +239,7 @@ r2+=dr
 r3+=dr
 
 points_coordinates = getCoordinates(r1, r2, r3)
-renderBridges(r1,r2,r3, points_coordinates)
 renderSocktes(r1,r2,r3, points_coordinates)
+renderBridges(r1,r2,r3, points_coordinates)
 
 doc.recompute()
