@@ -9,6 +9,13 @@ import configparser
 import os
 from scipy.optimize import fsolve
 import urllib.request
+from scipy.optimize import newton
+
+def getNormal(r1,r2,r3, coords):
+    return np.array([2*coords[0]/r1**2, 2*coords[1]/r2**2, 2*coords[2]/r3**2])
+
+def projectionOnEllipsoid(r1, r2, r3, coords):
+    return coords * np.sqrt(1 / (r1**2 * coords[0]**2 + r2**2 * coords[1]**2 + r3**2 * coords[2]**2))
 
 def normalize(vec):
     return vec / np.linalg.norm(vec)
@@ -27,8 +34,8 @@ def rotation_matrix_from_vectors(vec1, vec2):
 def ellipsoidFormula(r1, r2, r3, x, y):
     formula = 1 - (x/r1)**2 - (y/r2)**2
     if formula < 0:
-        return [x, y, 0]
-    return [x, y, r3 * math.sqrt(formula)]
+        return np.array([x, y, 0])
+    return np.array([x, y, r3 * math.sqrt(formula)])
 
 def ellipsFormula(r1, r2, x, sign):
     return sign * r2 * math.sqrt(1 - (x/r1) ** 2)
@@ -58,7 +65,6 @@ def getCoordinates(r1, r2, r3):
     
 def getConnectedPoints():
     return [
-        [
             ("Fp1", "Fp2"),
             ("Fp1", "F7"),
             ("F7", "T3"),
@@ -68,9 +74,7 @@ def getConnectedPoints():
             ("F8", "T4"),
             ("T4", "T6"),
             ("T6", "O2"),
-            ("O1", "O2")
-        ],
-        [
+            ("O1", "O2"),
             ("Fp1", "F3"),
             ("F7", "F3"),
             ("Fz", "F3"),
@@ -93,66 +97,54 @@ def getConnectedPoints():
             ("O2", "P4"),
             ("Fz", "Cz"),
             ("Pz", "Cz")
-        ]
     ]
 
-def getInterPointsX(p1, p2, dx, radius):
-    inversed = False
-    if p1 > p2:
-        p1, p2 = p2, p1
-        inversed = True
-    points = []
+def closest_point_on_ellipsoid(point, a, b, c):
+    normal = normalize(getNormal(r1,r2,r3,point))
 
-    i = p1
-    while i + dx < p2:
-        points.append(i)
-        i += dx
-    points.append(p2)
-    if inversed:
-        points.reverse()
-    return points
+    def ellipsoidForCloset(x, y, z, a, b, c):
+        return (x / a)**2 + (y / b)**2 + (z / c)**2 - 1
+    
+    def f(t):
+        x = point[0] + t * normal[0]
+        y = point[1] + t * normal[1]
+        z = point[2] + t * normal[2]
+        return ellipsoidForCloset(x, y, z, a, b, c)
+    t = newton(f, 0)
+    return point + t * normal
 
 
-def getCurvesOnTheBottom(r2, r3, points_coordinates, dx = 0.5):
+def getPointOnSocketEdge(point, vector, socketRadius, r1, r2, r3):
+        n1 = normalize(getNormal(r1,r2,r3, point))
+        vectorInPlane = vector-(vector.dot(n1))*n1
+        vectorInPlane = normalize(vectorInPlane)*socketRadius
+        point1 = point + vectorInPlane
+        return closest_point_on_ellipsoid(point1, r1,r2,r3)
+
+def getCurvesOnEllipsoid(r1, r2, r3, points_coordinates, connections, n = 100):
+    curves = []
     socketRadius = 12
-    connections = getConnectedPoints()
-    curves = []
-    for p1, p2 in connections[0]:
+
+    for p1, p2 in connections:
+        print(p1,p2)
         coord1 = points_coordinates[p1]
         coord2 = points_coordinates[p2]
-        inter_points_x = getInterPointsX(coord1[0], coord2[0], dx, socketRadius)
 
-        inter_points_xyz = [[x, ellipsFormula(r2, r3, x, math.copysign(1, coord1[1])), 0] for x in inter_points_x]
-        #points = list(filter(lambda x: math.dist(coord1, x) > socketRadius and math.dist(coord2, x) > socketRadius , inter_points_xyz))
+        n_vector = (coord2-coord1)/n
 
-        inter_points = [App.Vector(x[0], x[1], x[2]) for x in inter_points_xyz]
+        point1 = getPointOnSocketEdge(coord1, n_vector, socketRadius,r1,r2,r3)
+        point2 = getPointOnSocketEdge(coord2, -n_vector, socketRadius,r1,r2,r3)
 
-        curve = Draft.make_bezcurve(inter_points)
-        curves.append(curve.Shape)
-    return curves
-
-def getCurvesOnEllipsoid(r1, r2, r3, points_coordinates, n = 20):
-    connections = getConnectedPoints()
-    curves = []
-
-    for p1, p2 in connections[1]:
-
-        coord1 = points_coordinates[p1]
-        coord2 = points_coordinates[p2]
-        points = [coord1]
-
+        points = [point1]
+        n_vector = (point2 - point1)/n
         for i in range(1, n):
-            points.append([
-                coord1[0]+i*(coord2[0]-coord1[0])/n,
-                coord1[1]+i*(coord2[1]-coord1[1])/n,
-                coord1[2]+i*(coord2[2]-coord1[2])/n
-                ])
-        points.append(coord2)
+            points.append(point1 + i*n_vector)
+        points.append(point2)
+        print(points)
 
-        points_3d = [ellipsoidFormula(r1,r2,r3,p[0], p[1]) for p in points]
-        vectors = [App.Vector(p[0], p[1], p[2]) for p in points_3d]
+        points_on_ellipsoid = [closest_point_on_ellipsoid(p, r1,r2,r3) for p in points]
 
-        curve = Draft.make_bezcurve(vectors)
+        curve = Draft.make_bezcurve([App.Vector(x,y,z) for x,y,z in points_on_ellipsoid])
         curves.append(curve.Shape)
 
     return curves
@@ -163,7 +155,7 @@ def renderSocktes(r1, r2, r3, points_coordinates):
     for name,coords in points_coordinates.items():
         point = Mesh.Mesh(config['DEFAULT']['ModelPath'])
         
-        normal = [2*coords[0]/r1**2, 2*coords[1]/r2**2, 2*coords[2]/r3**2]
+        normal = getNormal(r1,r2,r3, coords)
         normalized_normal = normalize(normal)
         matrix = rotation_matrix_from_vectors(np.array([0,0,1]), np.array(normalized_normal))
         angles = R.from_matrix(matrix).as_euler('zyx', degrees=True)
@@ -179,10 +171,8 @@ def renderSocktes(r1, r2, r3, points_coordinates):
     return points_mesh
 
 def renderBridges(r1, r2, r3, points_coordinates):
-    curves0 = getCurvesOnTheBottom(r1, r2, points_coordinates)
-    curves1 = getCurvesOnEllipsoid(r1,r2,r3,points_coordinates)
-
-    curves = curves0 + curves1
+    connections = getConnectedPoints()
+    curvesInner = getCurvesOnEllipsoid(r1,r2,r3, points_coordinates, connections)
 
     dr = 5
     r1+=dr
@@ -190,17 +180,14 @@ def renderBridges(r1, r2, r3, points_coordinates):
     r3+=dr
 
     points_coordinates2 = getCoordinates(r1, r2, r3)
-    curves02 = getCurvesOnTheBottom(r1, r2, points_coordinates2)
-    curves12 = getCurvesOnEllipsoid(r1,r2,r3,points_coordinates2)
-
-    curves2 = curves02 + curves12
+    curvesOuter = getCurvesOnEllipsoid(r1,r2,r3,points_coordinates2, connections)
 
     models = []
 
     offsetSize = 2
 
-    for i in range(len(curves)):
-        surface = Part.makeRuledSurface(curves[i], curves2[i])
+    for i in range(len(curvesInner)):
+        surface = Part.makeRuledSurface(curvesInner[i], curvesOuter[i])
         offset1 = surface.makeOffsetShape(offsetSize, 0.1, fill = True)
         offset2 = surface.makeOffsetShape(-offsetSize, 0.1, fill = True)
         offset = offset1.fuse(offset2)
