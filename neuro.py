@@ -131,13 +131,13 @@ def addConnectorPointsToList(point1, point2, type, connectorPoints):
     if(type == ConnectionType.OneCut):
         center = (point1 + point2)/2
         center = closest_point_on_ellipsoid(center, r1,r2,r3)
-        connectorPoints.append([center])
+        connectorPoints.append([(center, center - point1)])
     elif(type == ConnectionType.TwoCuts):
         DISTANCE_TILL_CONNECTOR = 12
         connector_point_vector = normalize(point2-point1) * DISTANCE_TILL_CONNECTOR
         p1 = closest_point_on_ellipsoid(point1 + connector_point_vector, r1,r2,r3)
         p2 = closest_point_on_ellipsoid(point2 - connector_point_vector, r1,r2,r3)
-        connectorPoints.append([p1,p2])
+        connectorPoints.append([(p1,p1 - point1),(p2,p2-point2)])
 
 def getCurves(r1, r2, r3, points_coordinates, connections, addConnectorPoints = False, n = 100):
     curves = []
@@ -209,18 +209,20 @@ def renderBridges(r1, r2, r3, points_coordinates):
 
     for i in range(len(curvesInner)):
         surface = Part.makeRuledSurface(curvesInner[i], curvesOuter[i])
-        offset1 = surface.makeOffsetShape(offsetSize, 0.1, fill = False)
-        offset2 = offset1.makeOffsetShape(-2*offsetSize, 0.1, fill = True)
-        offset = offset2 #offset1.fuse(offset2)
+        offset0 = surface.makeOffsetShape(offsetSize, 0.1, fill = False)
+        offset = offset0.makeOffsetShape(-2*offsetSize, 0.1, fill = True)
         Part.show(offset)
         models.append(offset)
 
 
-    for index, points in enumerate(connectorPoints):
-        for point in points:
+    for points in connectorPoints:
+        for point, vector in points:
             template = Mesh.Mesh("C:/Users/chiru/AppData/Roaming/FreeCAD/Macro/template.stl")
             normal = normalize(getNormal(r1,r2,r3, point))
-            matrix = rotation_matrix_from_vectors(np.array([0,0,1]), normal)
+            cross_product1 = normalize(np.cross(normal, normalize(vector)))
+            cross_product2 = normalize(np.cross(normal, cross_product1))
+            matrix = np.column_stack((cross_product1, cross_product2, normal))
+            #matrix = rotation_matrix_from_vectors(np.array([0,0,1]), normal)
 
             quat = R.from_matrix(matrix).as_quat()
             template.Placement = App.Placement(App.Vector(point[0], point[1], point[2]),  App.Rotation(quat[0], quat[1], quat[2], quat[3]))
