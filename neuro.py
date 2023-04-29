@@ -11,6 +11,9 @@ from scipy.optimize import fsolve
 import urllib.request
 from scipy.optimize import newton
 from enum import Enum
+import BOPTools.SplitAPI
+import BOPTools.SplitFeatures
+import CompoundTools.Explode
 import time
 
 class ConnectionType(Enum):
@@ -142,7 +145,7 @@ def addConnectorPointsToList(point1, point2, type, connectorPoints):
 def getCurves(r1, r2, r3, points_coordinates, connections, addConnectorPoints = False, n = 100):
     curves = []
     connectorPoints = []
-    socketRadius = 12
+    socketRadius = 11
 
     for p1, p2, type in connections:
         coord1 = points_coordinates[p1]
@@ -164,7 +167,7 @@ def getCurves(r1, r2, r3, points_coordinates, connections, addConnectorPoints = 
         points_on_ellipsoid = [closest_point_on_ellipsoid(p, r1,r2,r3) for p in points]
 
         curve = Draft.make_bezcurve([App.Vector(x,y,z) for x,y,z in points_on_ellipsoid])
-        curves.append(curve.Shape)
+        curves.append(curve)
 
     return curves, connectorPoints
 
@@ -173,7 +176,9 @@ def renderSocktes(r1, r2, r3, points_coordinates):
     urllib.request.urlretrieve(config['DEFAULT']['ModelUrl'], config['DEFAULT']['ModelPath'])
     for name,coords in points_coordinates.items():
         point = Mesh.Mesh(config['DEFAULT']['ModelPath'])
-        
+        # point = doc.addObject("Mesh::Feature", name)
+        # point.Mesh.read(config['DEFAULT']['ModelPath'])
+
         up = np.array([0,0,1])
         normal = normalize(getNormal(r1,r2,r3, coords))
 
@@ -181,7 +186,7 @@ def renderSocktes(r1, r2, r3, points_coordinates):
         quat = R.from_matrix(matrix).as_quat()
         point.Placement = App.Placement(App.Vector(coords[0], coords[1], coords[2]),  App.Rotation(quat[0], quat[1], quat[2], quat[3]))
         points_mesh.append(point)
-        Mesh.show(point)
+        Mesh.show(point, name)
         
         #draw normals
         # p1 = App.Vector(coords[0], coords[1], coords[2])
@@ -192,41 +197,78 @@ def renderSocktes(r1, r2, r3, points_coordinates):
 
 def renderBridges(r1, r2, r3, points_coordinates):
     connections = getConnectedPoints()
-    curvesInner, _ = getCurves(r1,r2,r3, points_coordinates, connections)
-
-    dr = 5
-    r1+=dr
-    r2+=dr
-    r3+=dr
-
-    points_coordinates2 = getCoordinates(r1, r2, r3)
-    curvesOuter, connectorPoints = getCurves(r1,r2,r3,points_coordinates2, connections, addConnectorPoints=True)
+    curvesInner, connectorPoints = getCurves(r1,r2,r3, points_coordinates, connections, addConnectorPoints=True)
 
     models = []
-
     offsetSize = 2
+    height = 4.5
+    for curve, points in zip(curvesInner, connectorPoints):
+        point, _ = points[0]
+        normal = normalize(getNormal(r1,r2,r3,point)) * height
+        feature = doc.addObject("Part::Feature", "Wire")
+        feature.Shape = curve.Shape
+        cloned_object = doc.copyObject(feature)
+        cloned_object.Placement.Base.x += normal[0]
+        cloned_object.Placement.Base.y += normal[1]
+        cloned_object.Placement.Base.z += normal[2]
 
-
-    for i in range(len(curvesInner)):
-        surface = Part.makeRuledSurface(curvesInner[i], curvesOuter[i])
+        surface = Part.makeRuledSurface(curve.Shape, cloned_object.Shape)
         offset0 = surface.makeOffsetShape(offsetSize, 0.1, fill = False)
         offset = offset0.makeOffsetShape(-2*offsetSize, 0.1, fill = True)
         Part.show(offset)
         models.append(offset)
+        doc.removeObject(curve.Name)
+        doc.removeObject(feature.Name)
+        doc.removeObject(cloned_object.Name)
 
+    return models, connectorPoints
 
-    for points in connectorPoints:
+def addConnectors(connectorPoints, bridges):
+    sliceNames = []
+    shapeNames = []
+    shapeNum = 0
+
+    for index, points in enumerate(connectorPoints):
+        templates = []
         for point, vector in points:
             template = Mesh.Mesh("C:/Users/chiru/AppData/Roaming/FreeCAD/Macro/template.stl")
             normal = normalize(getNormal(r1,r2,r3, point))
             cross_product1 = normalize(np.cross(normal, normalize(vector)))
             cross_product2 = normalize(np.cross(normal, cross_product1))
             matrix = np.column_stack((cross_product1, cross_product2, normal))
-            #matrix = rotation_matrix_from_vectors(np.array([0,0,1]), normal)
 
             quat = R.from_matrix(matrix).as_quat()
             template.Placement = App.Placement(App.Vector(point[0], point[1], point[2]),  App.Rotation(quat[0], quat[1], quat[2], quat[3]))
             Mesh.show(template)
+            mesh_obj = doc.ActiveObject
+            shape = Part.Shape()
+            shape.makeShapeFromMesh(template.Topology, 0.1)
+            doc.removeObject(mesh_obj.Name)
+            shape_obj = Part.show(shape)
+            templates.append(shape_obj)
+
+        bridge = bridges[index]
+        bridge_obj = Part.show(bridge) 
+
+        f = BOPTools.SplitFeatures.makeSlice(name='Slice')
+        f.Base = bridge_obj
+        f.Tools = templates
+        f.Mode = 'Split'
+        f.Proxy.execute(f)
+        f.purgeTouched()
+        for obj in f.ViewObject.Proxy.claimChildren():
+            obj.ViewObject.hide()
+        CompoundTools.Explode.explodeCompound(f)
+        f.ViewObject.hide()
+        print(f.Label)
+
+        sliceNumText = f"{shapeNum:03d}"
+        sliceNumText = sliceNumText if sliceNumText != "000" else ""
+
+        shapeNames.append(f"Shape{sliceNumText}")
+        sliceNames.append([f"Slice{sliceNumText}_child{i}" for i in range(len(templates)+1)])
+        shapeNum+=1
+    return sliceNames, shapeNames
 
 def equations(p):
     x, y, z = p
@@ -247,7 +289,7 @@ TransverseLengthParam = float(config['DEFAULT']['TransverseLength'])
 
 r1, r2, r3 =  fsolve(equations, (1, 1, 1))
 
-doc = App.activeDocument()
+doc = App.newDocument()
 ellipsoid = doc.addObject("Part::Ellipsoid", "myEllipsoid")
 ellipsoid.Radius1 = r3
 ellipsoid.Radius2 = r1
@@ -259,7 +301,29 @@ r2+=dr
 r3+=dr
 
 points_coordinates = getCoordinates(r1, r2, r3)
-renderSocktes(r1,r2,r3, points_coordinates)
-renderBridges(r1,r2,r3, points_coordinates)
+points_mesh = renderSocktes(r1,r2,r3, points_coordinates)
+bridge_models, connector_points = renderBridges(r1,r2,r3, points_coordinates)
+sliceNames, shapeNames = addConnectors(connector_points, bridge_models)
+
+
+for name in shapeNames:
+    doc.removeObject(name)
 
 doc.recompute()
+
+usedSockets = {}
+for names, points in zip(sliceNames, getConnectedPoints()):
+    if len(names) == 3:
+        socketNames = [points[0], points[1]]
+        objects =  [doc.getObject(name) for name in names]
+        Mesh.export([objects[0]], f"C:\\Users\\chiru\\AppData\\Roaming\\FreeCAD\\Macro\\Export\\{socketNames[0]}_{socketNames[1]}.stl")
+        objects_for_sockets = [objects[2], objects[1]]
+        for i, name in enumerate(socketNames):
+            if name in usedSockets:
+                usedSockets[name].append(objects_for_sockets[i])
+            else:
+                socket = doc.getObject(name)
+                usedSockets[name] = [socket, objects_for_sockets[i]]
+
+for name in usedSockets:
+    Mesh.export(usedSockets[name], f"C:\\Users\\chiru\\AppData\\Roaming\\FreeCAD\\Macro\\Export\\{name}.stl")    

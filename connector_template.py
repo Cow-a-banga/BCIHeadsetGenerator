@@ -20,7 +20,7 @@ def get_points(z_level):
         App.Vector((w + out_length), 0, z_level),
     ]
 
-wire1 = Part.makePolygon(get_points(0))
+wire1 = Part.makePolygon(get_points(-out_height))
 wire2 = Part.makePolygon(get_points(height + out_height))
 
 surface = Part.makeRuledSurface(wire1, wire2)
