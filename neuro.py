@@ -14,7 +14,7 @@ from enum import Enum
 import BOPTools.SplitAPI
 import BOPTools.SplitFeatures
 import CompoundTools.Explode
-import time
+import itertools
 
 class ConnectionType(Enum):
     OneCut = 1
@@ -176,8 +176,6 @@ def renderSocktes(r1, r2, r3, points_coordinates):
     urllib.request.urlretrieve(config['DEFAULT']['ModelUrl'], config['DEFAULT']['ModelPath'])
     for name,coords in points_coordinates.items():
         point = Mesh.Mesh(config['DEFAULT']['ModelPath'])
-        # point = doc.addObject("Mesh::Feature", name)
-        # point.Mesh.read(config['DEFAULT']['ModelPath'])
 
         up = np.array([0,0,1])
         normal = normalize(getNormal(r1,r2,r3, coords))
@@ -187,11 +185,6 @@ def renderSocktes(r1, r2, r3, points_coordinates):
         point.Placement = App.Placement(App.Vector(coords[0], coords[1], coords[2]),  App.Rotation(quat[0], quat[1], quat[2], quat[3]))
         points_mesh.append(point)
         Mesh.show(point, name)
-        
-        #draw normals
-        # p1 = App.Vector(coords[0], coords[1], coords[2])
-        # p2 = App.Vector(coords[0] + 100 * normal[0], coords[1] + 100 * normal[1], coords[2] + 100 * normal[2])
-        # Draft.make_line(p1, p2)
     os.remove(config["DEFAULT"]["ModelPath"])
     return points_mesh
 
@@ -260,7 +253,10 @@ def addConnectors(connectorPoints, bridges):
             obj.ViewObject.hide()
         CompoundTools.Explode.explodeCompound(f)
         f.ViewObject.hide()
-        print(f.Label)
+        # for part in f.Shape.childShapes():
+        #     center = part.CenterOfMass
+        #     print(type(part))
+        #     print(center)
 
         sliceNumText = f"{shapeNum:03d}"
         sliceNumText = sliceNumText if sliceNumText != "000" else ""
@@ -313,17 +309,41 @@ doc.recompute()
 
 usedSockets = {}
 for names, points in zip(sliceNames, getConnectedPoints()):
+    socketNames = [points[0], points[1]]
+    objects =  [doc.getObject(name) for name in names]
+    coords = [obj.Shape.CenterOfMass for obj in objects]
+    from_coord = points_coordinates[points[0]]
+    to_coord = points_coordinates[points[1]]
+    pairs = list(itertools.combinations(coords, 2))
+    distances = [math.dist(p1,p2) for (p1,p2) in pairs]
     if len(names) == 3:
-        socketNames = [points[0], points[1]]
-        objects =  [doc.getObject(name) for name in names]
-        Mesh.export([objects[0]], f"C:\\Users\\chiru\\AppData\\Roaming\\FreeCAD\\Macro\\Export\\{socketNames[0]}_{socketNames[1]}.stl")
-        objects_for_sockets = [objects[2], objects[1]]
-        for i, name in enumerate(socketNames):
-            if name in usedSockets:
-                usedSockets[name].append(objects_for_sockets[i])
-            else:
-                socket = doc.getObject(name)
-                usedSockets[name] = [socket, objects_for_sockets[i]]
+        max_dist = max(distances)
+        if distances[0] == max_dist:
+            bridge = objects[2]
+            objects.pop(2)
+            coords.pop(2)
+        elif distances[1] == max_dist:
+            bridge = objects[1]
+            objects.pop(1)
+            coords.pop(1)
+        elif distances[2] == max_dist:
+            bridge = objects[0]
+            objects.pop(0)
+            coords.pop(0)
+        Mesh.export([bridge], f"C:\\Users\\chiru\\AppData\\Roaming\\FreeCAD\\Macro\\Export\\{socketNames[0]}_{socketNames[1]}.stl")
+        
+    if math.dist(coords[0], from_coord) <  math.dist(coords[0], to_coord):
+        objects_for_sockets = objects
+    else:
+        objects_for_sockets = list(reversed(objects))
+
+        
+    for i, name in enumerate(socketNames):
+        if name in usedSockets:
+            usedSockets[name].append(objects_for_sockets[i])
+        else:
+            socket = doc.getObject(name)
+            usedSockets[name] = [socket, objects_for_sockets[i]]
 
 for name in usedSockets:
     Mesh.export(usedSockets[name], f"C:\\Users\\chiru\\AppData\\Roaming\\FreeCAD\\Macro\\Export\\{name}.stl")    
