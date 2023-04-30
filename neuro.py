@@ -132,7 +132,7 @@ def getPointOnSocketEdge(point, vector, socketRadius, r1, r2, r3):
 
 def addConnectorPointsToList(point1, point2, type, connectorPoints):
     if(type == ConnectionType.OneCut):
-        center = (point1 + point2)/2
+        center = (point1 * 0.6 + point2 * 0.4)
         center = closest_point_on_ellipsoid(center, r1,r2,r3)
         connectorPoints.append([(center, center - point1)])
     elif(type == ConnectionType.TwoCuts):
@@ -253,10 +253,6 @@ def addConnectors(connectorPoints, bridges):
             obj.ViewObject.hide()
         CompoundTools.Explode.explodeCompound(f)
         f.ViewObject.hide()
-        # for part in f.Shape.childShapes():
-        #     center = part.CenterOfMass
-        #     print(type(part))
-        #     print(center)
 
         sliceNumText = f"{shapeNum:03d}"
         sliceNumText = sliceNumText if sliceNumText != "000" else ""
