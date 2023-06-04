@@ -41,3 +41,6 @@ def render_bridges(params: InputParameters, points_coordinates: Dict[str, Vector
         models.append(model)
 
     return models, connections
+
+
+__all__ = ["render_bridges"]

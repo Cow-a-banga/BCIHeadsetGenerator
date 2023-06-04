@@ -6,11 +6,6 @@ from utils.models import Vector, Ellipsoid
 
 
 def rotation_matrix_from_vectors(vec1: Vector, vec2: Vector) -> np.ndarray:
-    """
-    Возвращает матрицу поворота, которая поворачивает vec1 в vec2
-    Использует алгоритм Родрига для вычисления матрицы поворота
-    """
-
     a, b = vec1.normalized(), vec2.normalized()
     v = np.cross(a, b)
     if any(v):

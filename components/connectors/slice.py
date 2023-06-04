@@ -72,3 +72,5 @@ def slice_bridges(params: InputParameters, bridges: List[Part.Shape], connection
     for name in shape_names:
         doc.removeObject(name)
     return slice_names
+
+__all__ = ["slice_bridges"]

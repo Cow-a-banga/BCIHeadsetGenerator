@@ -14,17 +14,17 @@ def get_point_on_socket_edge(params: InputParameters, socket_center: Vector, cur
     return params.ellipsoid.closest_point_on_ellipsoid(socket_edge_point)
 
 
-def get_connector_points(params: InputParameters, point_from: Vector, point_to: Vector,
+def get_connector_points(params: InputParameters, point_from: Vector, point_name_from: str, point_to: Vector, point_name_to: str,
                          connection_type: ConnectionType) -> Connection:
     e:Ellipsoid = params.ellipsoid
     points: List[ConnectorPoint] = []
     if connection_type == ConnectionType.OneCut:
-        center:Vector = (point_from * 0.6 + point_to * 0.4)
+        center:Vector = (point_from * 0.4 + point_to * 0.6)
         center = e.closest_point_on_ellipsoid(center)
-        points = [ConnectorPoint(center, center-point_from)]
+        points = [ConnectorPoint(center, (center-point_from).normalized())]
     elif connection_type == ConnectionType.TwoCuts:
         connector_point_vector = (point_to - point_from).normalized() * params.bridge.distance_to_connector
         p1 = e.closest_point_on_ellipsoid(point_from + connector_point_vector)
         p2 = e.closest_point_on_ellipsoid(point_to - connector_point_vector)
-        points = [ConnectorPoint(p1, p1 - point_from), ConnectorPoint(p2, p2 - point_to)]
-    return Connection(connection_type, points)
+        points = [ConnectorPoint(p1, (p1 - point_from).normalized()), ConnectorPoint(p2, (p2 - point_to).normalized())]
+    return Connection(connection_type, point_name_from, point_name_to, points)

@@ -7,6 +7,8 @@ class BridgeModelParameters:
     distance_to_connector: float
     width: float
     height: float
+    text_offset: float
+    text_width: float
 
 
 @dataclass

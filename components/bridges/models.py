@@ -14,4 +14,6 @@ class ConnectorPoint:
 @dataclass
 class Connection:
     type: ConnectionType
+    from_name: str
+    to_name: str
     points: List[ConnectorPoint]
