@@ -18,7 +18,7 @@ def get_parameters_from_config(config_path: str) -> InputParameters:
     bridge_width = config.getfloat('Model', 'BridgeWidth', fallback=4)
     bridge_height = config.getfloat('Model', 'BridgeHeight', fallback=4.5)
     text_offset = config.getfloat('Model', 'TextOffset', fallback=1)
-    text_width = config.getfloat('Model', 'TextWidth', fallback=0.2)
+    text_width = config.getfloat('Model', 'TextWidth', fallback=0.5)
     export_folder_path = config.get('Model', 'ExportFolderPath', fallback="_export")
 
     lower_head_circumference = config.getfloat('InputFromCircumference', 'LowerHeadCircumference')
