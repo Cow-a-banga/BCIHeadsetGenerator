@@ -4,20 +4,20 @@ from typing import List
 import FreeCAD as App
 import Part
 
-LENGTH_LEDGE = 2
+WIDTH_LEDGE = 2
 HEIGHT_LEDGE = 2
 
 
 def _get_points(z_level: float, bridge_width: float) -> List[App.Vector]:
     w = bridge_width / 2
-    length = w / 2
+    length = bridge_width
     return [
-        App.Vector(-(w + LENGTH_LEDGE), 0, z_level),
-        App.Vector(-0.25 * w, 0, z_level),
-        App.Vector(-0.75 * w, length, z_level),
-        App.Vector(0.75 * w, length, z_level),
-        App.Vector(0.25 * w, 0, z_level),
-        App.Vector((w + LENGTH_LEDGE), 0, z_level),
+        App.Vector(-(w + WIDTH_LEDGE), 0, z_level),
+        App.Vector(-0.4 * w, 0, z_level),
+        App.Vector(-0.6 * w, length, z_level),
+        App.Vector(0.6 * w, length, z_level),
+        App.Vector(0.4 * w, 0, z_level),
+        App.Vector((w + WIDTH_LEDGE), 0, z_level),
     ]
 
 @lru_cache(maxsize=None)
