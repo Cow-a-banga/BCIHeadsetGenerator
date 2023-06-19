@@ -12,6 +12,13 @@ class BridgeModelParameters:
 
 
 @dataclass
+class ConnectorParameters:
+    length: float
+    max_width: float
+    min_width: float
+
+
+@dataclass
 class SocketModelParameters:
     url: str
     path: str
@@ -23,4 +30,5 @@ class InputParameters:
     ellipsoid: Ellipsoid
     socket: SocketModelParameters
     bridge: BridgeModelParameters
+    connector: ConnectorParameters
     export_folder_path: str

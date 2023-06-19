@@ -39,7 +39,6 @@ def _add_used_sockets(from_coord: Vector, to_coord: Vector, coords, objects, soc
         else:
             socket = doc.getObject(name)
             used_sockets[name] = [socket, objects_for_sockets[i]]
-
         used_sockets[name].append(text)
 
 
@@ -61,7 +60,7 @@ def _prepare_parts(points_coordinates, points, names, text, used_sockets, export
     if len(names) == 3:
         _export_bridge(distances, objects, coords, socket_names, [text[0][0], text[1][1]], export_path)
 
-    socket_text = [text[0][1], text[1][0]] if len(text) == 2 else text
+    socket_text = [text[0][1], text[1][0]] if len(text) == 2 else [text[0][1], text[0][0]]
     _add_used_sockets(from_coord, to_coord, coords, objects, socket_names, socket_text, used_sockets, doc)
 
 
@@ -70,7 +69,7 @@ def export(slice_names: List[List[str]], points_coordinates: Dict[str, Vector], 
     for names, points, text in zip(slice_names, get_connected_points(), texts):
         _prepare_parts(points_coordinates, points, names, text, used_sockets, export_path, doc)
     _export_sockets(used_sockets, export_path)
-    doc.saveAs(os.path.join(export_path, "_doc.FCStd"))
+    doc.saveAs(os.path.join(export_path, "_eeg_headset.FCStd"))
 
 
 __all__ = ["export"]

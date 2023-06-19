@@ -16,7 +16,7 @@ def _place_dovetails(params: InputParameters, connector_points: List[ConnectorPo
     for connector_point in connector_points:
         point = connector_point.point
         vector = connector_point.direction
-        dovetail = generate_dovetail(params.bridge.height, params.bridge.width)
+        dovetail = generate_dovetail(params.bridge.height, params.bridge.width, params.connector.length)
         normal = params.ellipsoid.get_normal(point)
 
         cross_product1 = normal.cross(vector.normalized()).normalized()

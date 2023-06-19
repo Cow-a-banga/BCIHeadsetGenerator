@@ -19,15 +19,15 @@ def _get_position(params: InputParameters, connection: ConnectorPoint, direction
     matrix = np.column_stack((new_x, new_y, normal))
 
     quaternions = R.from_matrix(matrix).as_quat()
-    position = connection.point + (params.bridge.height * normal)
+    position = connection.point + (params.bridge.height / 2 * normal)
 
-    return quaternions, position, (new_x, new_y, params.bridge.text_width * normal)
+    return quaternions, position, (new_x, new_y, 2 * params.bridge.text_width * normal)
 
 
 def _generate_text(params: InputParameters, text_str1: str, text_str2: str, connection: ConnectorPoint,
                    directionReverse: int):
-    text1 = Draft.make_shapestring(String=text_str1, FontFile="C:/Windows/Fonts/Arial.ttf", Size=2.0, Tracking=0.0)
-    text2 = Draft.make_shapestring(String=text_str2, FontFile="C:/Windows/Fonts/Arial.ttf", Size=2.0, Tracking=0.0)
+    text1 = Draft.make_shapestring(String=text_str1, FontFile="C:/Windows/Fonts/Arial.ttf", Size=4.0, Tracking=0.0)
+    text2 = Draft.make_shapestring(String=text_str2, FontFile="C:/Windows/Fonts/Arial.ttf", Size=4.0, Tracking=0.0)
 
     width1 = text1.Shape.BoundBox.XLength
     height1 = text1.Shape.BoundBox.YLength
@@ -47,8 +47,10 @@ def _generate_text(params: InputParameters, text_str1: str, text_str2: str, conn
                                         App.Rotation(*quat))
 
     extruded_text1 = Draft.extrude(text1, App.Vector(*new_z))
+    extruded_text1.Label = f'{text_str1}_'
     extruded_text2 = Draft.extrude(text2, App.Vector(*new_z))
-    return [extruded_text1, extruded_text2]
+    extruded_text2.Label = f'{text_str2}_'
+    return [extruded_text2, extruded_text1]
 
 
 def add_text(params: InputParameters, connections: List[Connection]):
@@ -56,10 +58,10 @@ def add_text(params: InputParameters, connections: List[Connection]):
     for connection in connections:
         texts_in_bridge = []
         if connection.type == ConnectionType.TwoCuts:
-            texts_in_bridge.append(_generate_text(params, connection.from_name, connection.to_name, connection.points[0], -1))
-            texts_in_bridge.append(_generate_text(params, connection.from_name, connection.to_name, connection.points[1], 1))
+            texts_in_bridge.append(_generate_text(params, connection.to_name, connection.from_name, connection.points[0], -1))
+            texts_in_bridge.append(_generate_text(params, connection.to_name, connection.from_name, connection.points[1], 1))
         elif connection.type == ConnectionType.OneCut:
-            texts_in_bridge.append(_generate_text(params, connection.from_name, connection.to_name, connection.points[0], -1))
+            texts_in_bridge.append(_generate_text(params, connection.to_name, connection.from_name, connection.points[0], -1))
         texts.append(texts_in_bridge)
     return texts
 
