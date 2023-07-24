@@ -1,3 +1,6 @@
+import math
+from functools import lru_cache
+
 import numpy as np
 from scipy.optimize import newton
 
@@ -61,3 +64,18 @@ class Ellipsoid:
 
         t = newton(f, 0)
         return point + t * normal
+
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def get_ellipse_radius(a, b, theta):
+        return a*b/math.sqrt((a*math.sin(theta))**2 + (b*math.cos(theta))**2)
+
+    def get_radius12(self, theta):
+        return self.get_ellipse_radius(self.r1, self.r2, theta)
+
+    def get_radius13(self, theta):
+        return self.get_ellipse_radius(self.r1, self.r3, theta)
+
+    def get_radius23(self, theta):
+        return self.get_ellipse_radius(self.r2, self.r3, theta)
+

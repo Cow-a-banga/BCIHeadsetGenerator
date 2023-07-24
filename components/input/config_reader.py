@@ -22,13 +22,13 @@ def get_parameters_from_config(config_path: str) -> InputParameters:
     text_width = config.getfloat('Model', 'TextWidth', fallback=0.5)
     export_folder_path = config.get('Model', 'ExportFolderPath', fallback="_export")
 
-    lower_head_circumference = config.getfloat('InputFromCircumference', 'LowerHeadCircumference')
-    anterior_posterior_circumference = config.getfloat('InputFromCircumference', 'AnteriorPosteriorCircumference')
-    left_right_circumference = config.getfloat('InputFromCircumference', 'LeftRightCircumference')
+    lower_head_circumference = config.getfloat('InputFromCircumference', 'LowerHeadCircumference', fallback=None)
+    anterior_posterior_circumference = config.getfloat('InputFromCircumference', 'AnteriorPosteriorCircumference', fallback=None)
+    left_right_circumference = config.getfloat('InputFromCircumference', 'LeftRightCircumference', fallback=None)
 
-    up_down_radius = config.getfloat('InputFromRadius', 'UpDownRadius')
-    left_right_radius = config.getfloat('InputFromRadius', 'LeftRightRadius')
-    near_far_radius = config.getfloat('InputFromRadius', 'NearFarRadius')
+    up_down_radius = config.getfloat('InputFromRadius', 'UpDownRadius', fallback=None)
+    left_right_radius = config.getfloat('InputFromRadius', 'LeftRightRadius', fallback=None)
+    near_far_radius = config.getfloat('InputFromRadius', 'NearFarRadius', fallback=None)
 
     def equations(p):
         x, y, z = p
@@ -40,6 +40,7 @@ def get_parameters_from_config(config_path: str) -> InputParameters:
 
     if up_down_radius is None and left_right_radius is None and near_far_radius is None:
         r1, r2, r3 = fsolve(equations, (1, 1, 1))
+        print(r1, r2, r3)
 
         ellipsoid = Ellipsoid(r1, r2, r3)
     else:
