@@ -33,9 +33,9 @@ def get_parameters_from_config(config_path: str) -> InputParameters:
     def equations(p):
         x, y, z = p
         return (
-            4 * (math.pi * x * y + (x - y) ** 2) / (x + y) - lower_head_circumference,
-            4 * (math.pi * z * y + (z - y) ** 2) / (z + y) - anterior_posterior_circumference,
-            4 * (math.pi * x * z + (x - z) ** 2) / (x + z) - left_right_circumference
+            math.pi * (3 * (x + y) - math.sqrt((3*x + y)*(3*y + x))) - lower_head_circumference,
+            math.pi * (3 * (z + y) - math.sqrt((3*z + y)*(3*y + z))) - anterior_posterior_circumference,
+            math.pi * (3 * (x + z) - math.sqrt((3*x + z)*(3*z + x))) - left_right_circumference
         )
 
     if up_down_radius is None and left_right_radius is None and near_far_radius is None:
